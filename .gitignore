@@ -1,0 +1,16 @@
+# Google API 인증 파일 (절대 커밋 금지)
+credentials.json
+token.json
+token_sheets.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+
+# macOS
+.DS_Store
+
+# 로그
+*.log

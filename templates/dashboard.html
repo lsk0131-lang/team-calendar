@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>PR 팀 캘린더 대시보드 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+:root {
+  --bg:#0d0f18; --card:#141720; --card2:#1a1d2b; --border:#232636;
+  --text:#e2e4ef; --muted:#5c6180; --accent:#7c86ff;
+  --pr1:#818cf8; --pr2:#34d399; --comm:#fb923c;
+  --t1:#f43f5e; --t2:#f59e0b; --t3:#60a5fa;
+  --good:#22c55e; --low:#f59e0b; --none:#ef4444;
+  --tooltip-bg:#1e2235; --tooltip-border:#3a3f5c;
+  --hover-bg:#1e2235; --code-bg:#0c1a2e; --code-color:#7dd3fc;
+  --chart-grid:#1e2130; --chart-tick:#6b7280;
+  --table-stripe:#1a1d2b; --scrollbar-thumb:#3a3f5c;
+}
+[data-theme="light"] {
+  --bg:#f3f4f8; --card:#ffffff; --card2:#eef0f7; --border:#dde1ef;
+  --text:#1a1d2b; --muted:#6b7280; --accent:#4f5bd5;
+  --pr1:#6366f1; --pr2:#059669; --comm:#ea580c;
+  --t1:#dc2626; --t2:#d97706; --t3:#2563eb;
+  --good:#16a34a; --low:#d97706; --none:#dc2626;
+  --tooltip-bg:#ffffff; --tooltip-border:#d1d5db;
+  --hover-bg:#f0f2f8; --code-bg:#e8eaf6; --code-color:#3730a3;
+  --chart-grid:#e5e7eb; --chart-tick:#374151;
+  --table-stripe:#f8f9fc; --scrollbar-thumb:#c4c9e2;
+}
+[data-theme="light"] .cov-col-hdr.t1{background:#ffe4e6;border-bottom-color:#fca5a5}
+[data-theme="light"] .cov-col-hdr.t2{background:#fef3c7;border-bottom-color:#fcd34d}
+[data-theme="light"] .cov-col-hdr.t3{background:#dbeafe;border-bottom-color:#93c5fd}
+[data-theme="light"] .b-pr1{background:#e0e7ff;color:#4338ca}
+[data-theme="light"] .b-pr2{background:#d1fae5;color:#065f46}
+[data-theme="light"] .b-comm{background:#ffedd5;color:#9a3412}
+[data-theme="light"] .b-t1{background:#fee2e2;color:#b91c1c}
+[data-theme="light"] .b-t2{background:#fef9c3;color:#92400e}
+[data-theme="light"] .b-t3{background:#dbeafe;color:#1e40af}
+[data-theme="light"] .tab{background:#eef0f7;color:#6b7280}
+[data-theme="light"] .tab.on{background:var(--accent);color:#fff}
+[data-theme="light"] th{color:#374151}
+[data-theme="light"] td{border-bottom-color:#e5e7eb}
+[data-theme="light"] tr:hover td{background:#f0f2f8}
+[data-theme="light"] .sr-col{background:#f8f9fc}
+[data-theme="light"] .sr-quarter{border-bottom-color:#e5e7eb}
+[data-theme="light"] .sr-annual{background:rgba(79,91,213,.08);border-color:rgba(79,91,213,.2)}
+[data-theme="light"] .cov-row:hover{background:#f0f2f8}
+[data-theme="light"] .dot-none{background:#d1d5db}
+[data-theme="light"] .pill-good{background:#dcfce7;color:#166534}
+[data-theme="light"] .pill-mid{background:#fef9c3;color:#854d0e}
+[data-theme="light"] .pill-low{background:#dbeafe;color:#1e40af}
+[data-theme="light"] .pill-none{background:#fee2e2;color:#991b1b}
+[data-theme="light"] .chip-none{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}
+[data-theme="light"] .bar-track{background:#e5e7eb}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Apple SD Gothic Neo','Pretendard',sans-serif;font-size:14px}
+
+/* Header */
+header{background:var(--card);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;overflow:visible}
+header h1{font-size:16px;font-weight:700;letter-spacing:-.3px;white-space:nowrap;flex-shrink:0}
+header h1 span{color:var(--accent)}
+.year-btn{background:var(--card2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;flex-shrink:0}
+.year-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+.month-btn{background:var(--card2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0}
+.month-btn.active{background:#f59e0b;color:#000;border-color:#f59e0b;font-weight:600}
+.month-opt{padding:6px 14px;font-size:12px;color:var(--text);cursor:pointer;border-radius:5px;white-space:nowrap}
+.month-opt:hover{background:var(--card2)}
+.month-opt.active{background:#f59e0b;color:#000;font-weight:600}
+.divider{width:1px;height:18px;background:var(--border);margin:0 2px;flex-shrink:0}
+#refresh-btn{margin-left:auto;background:var(--accent);color:#fff;border:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0}
+#refresh-btn:hover{opacity:.85}
+#theme-btn{background:var(--card2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:14px;flex-shrink:0}
+#theme-btn:hover{opacity:.8}
+/* 가이드 버튼 */
+
+#sync-btn{
+  background:#0f2240;border:1px solid #1e3a5f;color:#60a5fa;
+  padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+}
+#sync-btn:hover{opacity:.85}
+#sync-btn:disabled{opacity:.5;cursor:wait}
+#manual-btn{
+  background:var(--card2);border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;
+  text-decoration:none;white-space:nowrap;flex-shrink:0;
+}
+#manual-btn:hover{color:var(--text);border-color:#4b5563}
+#download-btn{
+  background:#1a5c2a;color:#4ade80;border:1px solid #166534;
+  padding:6px 14px;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;
+  text-decoration:none;white-space:nowrap;flex-shrink:0;
+}
+#download-btn:hover{opacity:.85}
+#status{color:var(--muted);font-size:12px}
+
+/* Layout */
+main{padding:20px 24px;display:flex;flex-direction:column;gap:18px}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative}
+.kpi .lbl{font-size:11px;color:var(--muted);margin-bottom:5px;letter-spacing:.3px;text-transform:uppercase}
+.kpi .val{font-size:28px;font-weight:700}
+.kpi .sub{font-size:11px;color:var(--muted);margin-top:3px}
+.v-total{color:#fff} .v-pr1{color:var(--pr1)} .v-pr2{color:var(--pr2)} .v-comm{color:var(--comm)}
+.v-t1{color:var(--t1)} .v-t2{color:var(--t2)}
+.kpi-tip{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:9999;
+  background:#1e2235;border:1px solid #3a3f5c;border-radius:8px;padding:10px 14px;
+  font-size:12px;min-width:210px;white-space:normal;color:var(--text);line-height:1.8;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;}
+.kpi:hover .kpi-tip{display:block}
+.kpi-tip::after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);
+  border:6px solid transparent;border-bottom-color:#3a3f5c;}
+
+/* Section */
+.sec{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px}
+.sec h2{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:14px;letter-spacing:.2px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+canvas{max-height:240px}
+
+/* Coverage — 새 디자인 */
+.cov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;height:100%}
+.cov-col{background:var(--card2);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.cov-col-hdr{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:nowrap}
+.cov-col-hdr.t1{background:#3f0a15;border-bottom:1px solid #7f1d2e}
+.cov-col-hdr.t2{background:#3a2500;border-bottom:1px solid #78450a}
+.cov-col-hdr.t3{background:#0c2240;border-bottom:1px solid #1a4170}
+.cov-tier-name{font-size:12px;font-weight:700;white-space:nowrap}
+.t1 .cov-tier-name{color:var(--t1)} .t2 .cov-tier-name{color:var(--t2)} .t3 .cov-tier-name{color:var(--t3)}
+.cov-tier-pills{display:flex;gap:4px;font-size:11px;flex-shrink:0}
+.pill-good{background:#052e16;color:#4ade80;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.pill-mid{background:#1a1a00;color:#fb923c;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.pill-low{background:#0c1a3a;color:#60a5fa;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.pill-none{background:#2d0a0a;color:#f87171;padding:2px 7px;border-radius:99px;white-space:nowrap}
+
+.cov-list{padding:6px 0;overflow-y:scroll;flex:1;min-height:0;scrollbar-width:none}
+.cov-list::-webkit-scrollbar{width:6px;opacity:0;transition:opacity .2s}
+.cov-col:hover .cov-list{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) transparent}
+.cov-list::-webkit-scrollbar-track{background:transparent}
+.cov-list::-webkit-scrollbar-thumb{background:transparent;border-radius:3px;transition:background .2s}
+.cov-col:hover .cov-list::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb)}
+.cov-col:hover .cov-list::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.cov-row{display:flex;align-items:center;gap:8px;padding:5px 12px;transition:background .1s}
+.cov-row:hover{background:#1e2235}
+.cov-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-good{background:var(--good)} .dot-low{background:#60a5fa} .dot-none{background:#3a3a3a}
+.cov-name{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cov-name.none{color:var(--muted)}
+.cov-bar-wrap{width:60px;background:var(--border);border-radius:2px;height:6px;flex-shrink:0}
+.cov-bar-fill{height:100%;border-radius:2px}
+.cov-cnt{width:24px;text-align:right;font-size:12px;font-weight:600;flex-shrink:0}
+.cov-cnt.none{color:var(--muted)}
+.chip-none{background:#2d0a0a;border-color:#b91c1c;color:#f87171}
+.chip-cnt{font-size:10px;opacity:.7;margin-left:2px}
+
+/* Bar horizontal */
+.bar-list{display:flex;flex-direction:column;gap:6px}
+.bar-item{display:flex;align-items:center;gap:8px}
+.bar-name{width:110px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.bar-track{flex:1;background:var(--border);border-radius:3px;height:16px}
+.bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.bar-cnt{width:28px;font-size:12px;font-weight:600;color:var(--text)}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+td{padding:6px 8px;border-bottom:1px solid #1a1d2b}
+tr:last-child td{border:none}
+tr:hover td{background:#1a1d2b}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:11px;font-weight:600;margin:1px}
+.b-pr1{background:#1e1b4b;color:#a5b4fc}
+.b-pr2{background:#052e16;color:#86efac}
+.b-comm{background:#3a1500;color:#fdba74}
+.b-t1{background:#3f0a15;color:#fda4af}
+.b-t2{background:#3a2500;color:#fcd34d}
+.b-t3{background:#0c2240;color:#93c5fd}
+
+.tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+.tab{padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;background:var(--card2);border:1px solid var(--border);color:var(--muted)}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+
+.loading{text-align:center;padding:60px;color:var(--muted)}
+.err{color:#f87171;text-align:center;padding:40px}
+
+/* 분기별 랭킹 */
+.sr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sr-grid-2x2{grid-template-columns:repeat(5,1fr);gap:8px}
+.sr-annual{background:rgba(124,134,255,.1);border-radius:6px;margin:3px 6px 0;padding:4px 6px 6px!important;border:1px solid rgba(124,134,255,.2)}
+.sr-col{background:var(--card2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.sr-col-hdr{padding:7px 10px;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:4px}
+.sr-body{padding:4px 0}
+.sr-quarter{padding:3px 10px 6px;border-bottom:1px solid var(--border)}
+.sr-quarter:last-child{border-bottom:none}
+.sr-q-label{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.4px;margin-bottom:3px}
+.sr-row{display:flex;align-items:center;justify-content:space-between;padding:1px 0;font-size:12px}
+.sr-rank{width:16px;font-size:11px;color:var(--muted);flex-shrink:0}
+.sr-rank.gold{color:#fbbf24;font-weight:700}
+.sr-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.sr-cnt{color:var(--muted);font-size:11px;flex-shrink:0;margin-left:2px}
+/* 항상 표시되는 스크롤바 */
+#media-bars,#journalist-bars,#special-rankings{
+  scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--border);
+}
+#media-bars::-webkit-scrollbar,#journalist-bars::-webkit-scrollbar,
+#special-rankings::-webkit-scrollbar{width:6px}
+#media-bars::-webkit-scrollbar-track,#journalist-bars::-webkit-scrollbar-track,
+#special-rankings::-webkit-scrollbar-track{background:var(--border);border-radius:3px}
+#media-bars::-webkit-scrollbar-thumb,#journalist-bars::-webkit-scrollbar-thumb,
+#special-rankings::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+#media-bars::-webkit-scrollbar-thumb:hover,#journalist-bars::-webkit-scrollbar-thumb:hover,
+#special-rankings::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.sr-empty{color:var(--muted);font-size:12px;padding:4px 0}
+.sr-media-tip{font-size:11px;cursor:default;margin-left:3px;opacity:.7;position:relative}
+.sr-media-tip:hover{opacity:1}
+
+/* 기준 뱃지 & 툴팁 */
+.info-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;
+  background:#374151;color:#9ca3af;font-size:10px;font-weight:700;
+  cursor:default;position:relative;vertical-align:middle;margin-left:6px;
+  border:1px solid #4b5563;
+}
+.info-badge:hover{background:#4b5563;color:#e2e4ef}
+.info-badge .info-tooltip{
+  display:none;position:absolute;left:50%;transform:translateX(-50%);
+  bottom:calc(100% + 8px);z-index:999;
+  background:#1e2235;border:1px solid #3a3f5c;border-radius:8px;
+  padding:12px 16px;font-size:12px;min-width:360px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);white-space:nowrap;
+  color:var(--text);font-weight:400;line-height:1.8;
+}
+.info-badge:hover .info-tooltip{display:block}
+.info-tooltip::after{
+  content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:#3a3f5c;
+}
+.info-tooltip b{color:var(--accent)}
+
+/* 범례 */
+.legend{display:flex;gap:16px;margin-bottom:10px;font-size:12px}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-dot{width:10px;height:10px;border-radius:50%}
+
+/* 매체 툴팁 */
+#media-tooltip{
+  position:fixed;display:none;z-index:9999;
+  background:var(--tooltip-bg);border:1px solid var(--tooltip-border);border-radius:8px;
+  padding:10px 14px;font-size:12px;min-width:340px;max-width:480px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;
+  max-height:360px;overflow-y:auto;
+}
+#media-tooltip .tt-title{font-weight:700;color:var(--text);margin-bottom:8px;font-size:13px}
+#media-tooltip .tt-hdr{display:grid;grid-template-columns:84px 1fr 1fr;gap:2px 8px;
+  padding:0 0 4px;border-bottom:1px solid var(--tooltip-border);margin-bottom:4px;
+  color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.3px;}
+#media-tooltip .tt-meeting{display:grid;grid-template-columns:84px 1fr 1fr;gap:1px 8px;padding:3px 0;border-bottom:1px solid var(--border);}
+#media-tooltip .tt-meeting:last-child{border-bottom:none}
+#media-tooltip .tt-date{color:var(--muted);font-size:11px}
+#media-tooltip .tt-members{color:var(--text);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#media-tooltip .tt-journalist{color:var(--accent);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#media-tooltip .tt-row{display:flex;justify-content:space-between;gap:16px;color:var(--muted);padding:2px 0;font-size:11px}
+#media-tooltip .tt-row span:last-child{color:var(--text);font-weight:600}
+#media-tooltip .tt-tier{font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:6px}
+.tt-t1{background:#3f0a15;color:#fda4af} .tt-t2{background:#3a2500;color:#fcd34d} .tt-t3{background:#0c2240;color:#93c5fd}
+[data-theme="light"] .tt-t1{background:#fee2e2;color:#b91c1c}
+[data-theme="light"] .tt-t2{background:#fef3c7;color:#92400e}
+[data-theme="light"] .tt-t3{background:#dbeafe;color:#1e40af}
+
+/* Heatmap table */
+.heatmap-table{width:100%;border-collapse:collapse;font-size:11px}
+.heatmap-table th{padding:4px 6px;color:var(--muted);font-weight:600;font-size:10px;white-space:nowrap;border-bottom:1px solid var(--border);text-align:center}
+.heatmap-table th:first-child{text-align:left}
+.heatmap-table td{padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.03);white-space:nowrap}
+.heatmap-table td:first-child{padding-left:8px}
+.heatmap-cell{text-align:center;border-radius:3px;font-weight:600;font-size:10px;min-width:26px;padding:2px 0}
+.heatmap-name{cursor:pointer;color:var(--text);font-size:12px}
+.heatmap-name:hover{color:var(--accent);text-decoration:underline}
+
+/* Toast */
+#toast-container{position:fixed;top:70px;right:20px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:260px;max-width:340px;box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:all;animation:slideInRight .3s ease;font-size:12px}
+@keyframes slideInRight{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast-title{font-weight:700;color:var(--text);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.toast-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 0 0 8px}
+.toast-item{color:var(--muted);padding:2px 0;cursor:pointer}
+.toast-item:hover{color:var(--accent)}
+.toast-item .toast-name{color:var(--t1);font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📅 PR팀 <span>캘린더 대시보드</span></h1>
+  <div class="divider"></div>
+  <button class="year-btn active" onclick="setYear(2026,this)">2026년</button>
+  <button class="year-btn" onclick="setYear(2025,this)">2025년</button>
+  <button class="year-btn" onclick="setYear(2024,this)">2024년</button>
+  <div class="divider"></div>
+  <button class="month-btn" onclick="setQuarter(1,this)">Q1</button>
+  <button class="month-btn" onclick="setQuarter(2,this)">Q2</button>
+  <button class="month-btn" onclick="setQuarter(3,this)">Q3</button>
+  <button class="month-btn" onclick="setQuarter(4,this)">Q4</button>
+  <div class="divider"></div>
+  <div id="month-picker" style="position:relative;flex-shrink:0">
+    <button id="month-trigger" class="month-btn active" onclick="toggleMonthPicker(event)">📅 월별</button>
+    <div id="month-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:9999;
+      background:var(--card);border:1px solid var(--border);border-radius:8px;
+      padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:80px">
+      <div class="month-opt active" onclick="selectMonth(0)">전체</div>
+      <div class="month-opt" onclick="selectMonth(1)">1월</div>
+      <div class="month-opt" onclick="selectMonth(2)">2월</div>
+      <div class="month-opt" onclick="selectMonth(3)">3월</div>
+      <div class="month-opt" onclick="selectMonth(4)">4월</div>
+      <div class="month-opt" onclick="selectMonth(5)">5월</div>
+      <div class="month-opt" onclick="selectMonth(6)">6월</div>
+      <div class="month-opt" onclick="selectMonth(7)">7월</div>
+      <div class="month-opt" onclick="selectMonth(8)">8월</div>
+      <div class="month-opt" onclick="selectMonth(9)">9월</div>
+      <div class="month-opt" onclick="selectMonth(10)">10월</div>
+      <div class="month-opt" onclick="selectMonth(11)">11월</div>
+      <div class="month-opt" onclick="selectMonth(12)">12월</div>
+    </div>
+  </div>
+  <button id="refresh-btn" onclick="loadData(true)">↻ 새로고침</button>
+  <button id="theme-btn" onclick="toggleTheme()" title="테마 전환">🌙</button>
+  <button id="sync-btn" onclick="syncMedia()" title="Google Sheets 매체 목록 동기화">🔄 매체 싱크</button>
+  <a href="/guide" target="_blank" id="manual-btn">📖 사용 설명서</a>
+  <a id="download-btn" href="/api/download?year=2026" download>⬇ 엑셀 다운로드</a>
+</header>
+
+<div id="media-tooltip"></div>
+<div id="toast-container"></div>
+
+<main id="main">
+  <div class="loading">데이터 불러오는 중...</div>
+</main>
+
+<script>
+let _theme = localStorage.getItem('theme') || 'dark';
+function applyTheme(t){
+  _theme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('theme-btn');
+  if(btn) btn.textContent = t === 'dark' ? '🌙' : '☀️';
+  localStorage.setItem('theme', t);
+}
+function toggleTheme(){ applyTheme(_theme === 'dark' ? 'light' : 'dark'); loadData(); }
+
+async function syncMedia(){
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 동기화 중...';
+  try{
+    const res = await fetch('/api/sync-media');
+    const d   = await res.json();
+    btn.textContent = d.ok ? '✅ 싱크 완료' : '❌ 실패';
+    if(d.ok){ setTimeout(()=>loadData(true), 500); }
+    else{ alert('매체 싱크 실패:\n' + d.message); }
+  } catch(e){
+    btn.textContent = '❌ 오류';
+    alert('오류: ' + e.message);
+  }
+  setTimeout(()=>{ btn.textContent='🔄 매체 싱크'; btn.disabled=false; }, 3000);
+}
+applyTheme(_theme);
+
+const TC = {'기업PR':'#818cf8','서비스PR':'#34d399','그룹Comm':'#fb923c'};
+const TIER_COLOR = {'1':'#f43f5e','2':'#f59e0b','3':'#60a5fa'};
+let currentYear = 2026;
+let currentMonth = 0;
+let currentQuarter = 0;
+
+function setYear(y, el){
+  currentYear = y;
+  currentQuarter = 0;
+  currentMonth = 0;
+  document.querySelectorAll('.year-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.month-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.month-opt').forEach(o=>o.classList.remove('active'));
+  document.querySelectorAll('.month-opt')[0].classList.add('active');
+  document.getElementById('month-trigger').textContent = '📅 월별';
+  document.getElementById('month-trigger').classList.add('active');
+  updateDownloadLink();
+  loadData();
+}
+
+function setMonth(m, el){
+  currentMonth = m;
+  currentQuarter = 0;
+  document.querySelectorAll('.month-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  updateDownloadLink();
+  loadData();
+}
+
+function toggleMonthPicker(e){
+  e.stopPropagation();
+  const dd = document.getElementById('month-dropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectMonth(m){
+  currentMonth = m;
+  currentQuarter = 0;
+  // 드롭다운 옵션 active 표시
+  document.querySelectorAll('.month-opt').forEach(o=>o.classList.remove('active'));
+  document.querySelectorAll('.month-opt')[m].classList.add('active');
+  // 트리거 버튼 텍스트 업데이트
+  const labels = ['📅 월별','📅 1월','📅 2월','📅 3월','📅 4월','📅 5월','📅 6월',
+                  '📅 7월','📅 8월','📅 9월','📅 10월','📅 11월','📅 12월'];
+  document.getElementById('month-trigger').textContent = labels[m];
+  document.getElementById('month-trigger').classList.add('active');
+  // Q 버튼 active 해제
+  document.querySelectorAll('.month-btn:not(#month-trigger)').forEach(b=>b.classList.remove('active'));
+  document.getElementById('month-dropdown').style.display = 'none';
+  updateDownloadLink();
+  loadData();
+}
+
+// 외부 클릭 시 드롭다운 닫기
+document.addEventListener('click', ()=>{
+  const dd = document.getElementById('month-dropdown');
+  if(dd) dd.style.display = 'none';
+});
+
+function setQuarter(q, el){
+  currentQuarter = q;
+  currentMonth = 0;
+  document.querySelectorAll('.month-opt').forEach(o=>o.classList.remove('active'));
+  document.querySelectorAll('.month-opt')[0].classList.add('active');
+  document.getElementById('month-trigger').textContent = '📅 월별';
+  document.getElementById('month-trigger').classList.remove('active');
+  document.querySelectorAll('.month-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  updateDownloadLink();
+  loadData();
+}
+
+function updateDownloadLink(){
+  const monthParam = currentMonth ? `&month=${currentMonth}` : '';
+  document.getElementById('download-btn').href = `/api/download?year=${currentYear}${monthParam}`;
+}
+
+async function loadData(force=false){
+  const monthParam = currentMonth ? `&month=${currentMonth}` : '';
+  const quarterParam = currentQuarter ? `&quarter=${currentQuarter}` : '';
+  const forceParam = force ? '&force=true' : '';
+  document.getElementById('main').innerHTML = `<div class="loading">${force ? '🔄 최신 데이터 가져오는 중...' : '📡 캘린더 데이터 분석 중...'}</div>`;
+  try{
+    const res = await fetch(`/api/annual?year=${currentYear}${monthParam}${quarterParam}${forceParam}`);
+    const d = await res.json();
+    if(d.error){document.getElementById('main').innerHTML=`<div class="err">${d.error}</div>`;return;}
+    render(d);
+  }catch(e){
+    document.getElementById('main').innerHTML=`<div class="err">오류: ${e.message}</div>`;
+  }
+}
+
+function render(d){
+  const m = document.getElementById('main');
+  m.innerHTML = `
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi"><div class="lbl">전체 미팅</div><div class="val v-total">${d.total}</div><div class="sub">인당 ${d.member_count ? Math.round(d.total/d.member_count*10)/10 : '-'}건 · ${d.year}년 누적</div></div>
+    ${['기업PR','서비스PR','그룹Comm'].map(team=>{const pp=perPerson(d,team);return`<div class="kpi"><div class="lbl">${team}</div><div class="val v-${team==='기업PR'?'pr1':team==='서비스PR'?'pr2':'comm'}">${sum(d.monthly_teams[team])}</div><div class="sub">인당 ${pp.total}건 / 월 ${pp.monthly}건</div></div>`;}).join('')}
+    <div class="kpi"><div class="lbl">1티어 커버</div><div class="val v-t1">${coverPct(d.tier_summary,'1')}%</div><div class="sub">보통이상 ${d.tier_summary['1'].good+d.tier_summary['1'].mid}/${d.tier_summary['1'].total}개</div><div class="kpi-tip"><b style="color:var(--t1)">1티어 커버리지</b> (보통 이상 비율)<br>✅ 충분: 월 4회 이상<br>🟡 보통: 월 2~3회<br>🔵 부족: 월 1회 이하</div></div>
+    <div class="kpi"><div class="lbl">2티어 커버</div><div class="val v-t2">${coverPct(d.tier_summary,'2')}%</div><div class="sub">보통이상 ${d.tier_summary['2'].good+d.tier_summary['2'].mid}/${d.tier_summary['2'].total}개</div><div class="kpi-tip"><b style="color:var(--t2)">2티어 커버리지</b> (보통 이상 비율)<br>✅ 충분: 월 3회 이상<br>🟡 보통: 월 2회<br>🔵 부족: 월 1회 이하</div></div>
+    <div class="kpi"><div class="lbl">3티어 커버</div><div class="val v-t3">${coverPct(d.tier_summary,'3')}%</div><div class="sub">충분 ${d.tier_summary['3'].good}/${d.tier_summary['3'].total}개</div><div class="kpi-tip"><b style="color:var(--t3)">3티어 커버리지</b> (보통 이상 비율)<br>✅ 충분: 월 2회 이상<br>🟡 보통: 월 1회<br>🔵 부족: 월 0회</div></div>
+  </div>
+
+  <!-- 월별 트렌드 + 매체별 월별 히트맵 (2열) -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div class="sec" style="height:380px;display:flex;flex-direction:column">
+      <h2>📈 월별 미팅 현황 &amp; 연간 누적</h2>
+      <div style="visibility:hidden;margin-bottom:10px" class="tabs"><div class="tab">x</div></div>
+      <canvas id="chart-monthly" style="flex:1;min-height:0"></canvas>
+    </div>
+    <div class="sec" style="height:380px;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin-bottom:0">🔥 매체별 미팅 현황</h2>
+        <div class="tabs" id="heatmap-tier-tabs" style="margin-bottom:0">
+          <div class="tab on" onclick="filterHeatmap('all',this)">전체</div>
+          <div class="tab" style="color:var(--t1)" onclick="filterHeatmap('1',this)">1티어</div>
+          <div class="tab" style="color:var(--t2)" onclick="filterHeatmap('2',this)">2티어</div>
+          <div class="tab" style="color:var(--t3)" onclick="filterHeatmap('3',this)">3티어</div>
+          <div class="tab" style="color:var(--muted)" onclick="filterHeatmap('기타',this)">기타</div>
+        </div>
+      </div>
+      <div id="media-heatmap" style="flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) transparent"></div>
+    </div>
+  </div>
+
+  <!-- 매체 분석 + 커버리지 (3열) -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:18px">
+    <div class="sec" style="height:550px;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin-bottom:0">📰 매체별 미팅</h2>
+        <div class="tabs" id="media-time-tabs" style="margin-bottom:0">
+          <div class="tab on" onclick="filterMediaTime('all',this)">전체</div>
+          <div class="tab" onclick="filterMediaTime('lunch',this)">🍱 점심</div>
+          <div class="tab" onclick="filterMediaTime('dinner',this)">🍷 저녁</div>
+        </div>
+      </div>
+      <div class="tabs" id="media-tier-tabs" style="width:100%">
+        <div class="tab on" data-tier="all" style="flex:1;text-align:center" onclick="filterMediaTier('all',this)">전체</div>
+        <div class="tab" data-tier="1" style="flex:1;text-align:center;color:var(--t1)" onclick="filterMediaTier('1',this)">1티어</div>
+        <div class="tab" data-tier="2" style="flex:1;text-align:center;color:var(--t2)" onclick="filterMediaTier('2',this)">2티어</div>
+        <div class="tab" data-tier="3" style="flex:1;text-align:center;color:var(--t3)" onclick="filterMediaTier('3',this)">3티어</div>
+        <div class="tab" data-tier="기타" style="flex:1;text-align:center;color:var(--muted)" onclick="filterMediaTier('기타',this)">기타</div>
+      </div>
+      <div id="media-bars" style="flex:1;min-height:0;padding-right:2px"></div>
+    </div>
+    <div class="sec" style="height:550px;display:flex;flex-direction:column">
+      <h2>✏️ 기자별 미팅 Top 20</h2>
+      <div style="visibility:hidden" class="tabs"><div class="tab">placeholder</div></div>
+      <div id="journalist-bars" style="flex:1;min-height:0;padding-right:2px"></div>
+    </div>
+    <div class="sec" style="height:550px;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <h2 style="margin-bottom:0">🎯 관리 매체 커버리지 현황 <span class="info-badge">!<div class="info-tooltip">
+  <b>커버리지 기준 (월 단위)</b><br>
+  🔴 1티어 — 4회↑ 충분 / 2~3회 보통 / 1회↓ 부족<br>
+  🟡 2티어 — 3회↑ 충분 / 2회 보통 / 1회↓ 부족<br>
+  🔵 3티어 — 2회↑ 충분 / 1회 보통 / 0회 부족<br>
+  <span style="color:var(--muted);font-size:11px">전체 기간 조회 시 경과 월수에 비례해 적용</span>
+</div></span></h2>
+        <div class="legend" style="margin-bottom:0">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--good)"></div> 충분</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#fb923c"></div> 보통</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#60a5fa"></div> 부족</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#3a3a3a;border:1px solid #555"></div> 없음</div>
+        </div>
+      </div>
+      <div class="cov-grid" id="cov-grid" style="flex:1;min-height:0"></div>
+    </div>
+  </div>
+
+  <!-- 분기별 랭킹 -->
+  <div class="sec">
+    <h2>🏆 분기별 랭킹</h2>
+    <div id="special-rankings"></div>
+  </div>
+  `;
+
+  window._d = d;
+  drawMonthly(d);
+  // 초기 렌더: 전체 탭 기준 (1~3티어, 1건 이상)
+  currentMediaTime = 'all';
+  filterMediaTier('all', document.querySelector('#media-tier-tabs .tab'));
+  drawBars('journalist-bars',
+    d.top_journalists.map(x=>({name:x.name, count:x.count, color:'#38bdf8'})),
+    null,
+    d.top_journalists
+  );
+  renderSpecialRankings(d);
+  renderCovGrid(d.coverage);
+  // 히트맵 초기 렌더
+  renderHeatmap(d, 'all');
+  // 커버리지 갭 토스트
+  document.getElementById('toast-container').innerHTML = '';
+  showCoverageToast(d);
+}
+
+function sum(arr){return (arr||[]).reduce((a,b)=>a+b,0)}
+function perPerson(d, team){
+  const total = sum(d.monthly_teams[team]);
+  const cnt   = (d.team_member_counts||{})[team];
+  if(!cnt) return {total:'-', monthly:'-'};
+  const pp     = Math.round(total/cnt*10)/10;
+  const mo     = d.months_in_period ? Math.round(total/cnt/d.months_in_period*10)/10 : '-';
+  return {total: pp, monthly: mo};
+}
+function coverPct(ts, t){
+  const s=ts[t]; if(!s||!s.total) return 0;
+  return Math.round((s.good + (s.mid||0)) / s.total * 100);
+}
+
+function drawMonthly(d){
+  const labels = d.months.map(m=>m.slice(5)+'월');
+  new Chart(document.getElementById('chart-monthly'),{
+    data:{
+      labels,
+      datasets:[
+        ...Object.entries(d.monthly_teams).map(([team,vals])=>({
+          type:'bar', label:team, data:vals,
+          backgroundColor:TC[team]+'99', borderColor:TC[team], borderWidth:1, stack:'a',
+          yAxisID:'y',
+        })),
+        {
+          type:'line', label:'누적', data:d.cumulative,
+          borderColor:'#fee500', borderWidth:2.5, pointRadius:3,
+          pointBackgroundColor:'#fee500', tension:.3, fill:false,
+          yAxisID:'y2',
+        },
+      ],
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{bottom:0}},
+      plugins:{legend:{labels:{color:'#9ca3af',font:{size:11}}},},
+      scales:{
+        x:{stacked:true,ticks:{color:'#6b7280'},grid:{color:'#1e2130'}},
+        y:{stacked:true,ticks:{color:'#6b7280'},grid:{color:'#1e2130'},title:{display:true,text:'월별',color:'#6b7280',font:{size:11}}},
+        y2:{position:'right',ticks:{color:'#fee500'},grid:{display:false},title:{display:true,text:'누적',color:'#fee500',font:{size:11}}},
+      },
+    },
+  });
+}
+
+function drawBars(id, items, membersMap, journalistData){
+  const max = Math.max(...items.map(x=>x.count), 1);
+  const isMedia = !!membersMap;
+  document.getElementById(id).innerHTML = `<div class="bar-list">` +
+    items.map(x => {
+      const isJournalist = !!journalistData;
+      const dataAttrs = isMedia
+        ? `data-media="${x.name}" data-tier="${x.tier||''}" data-count="${x.count}"`
+        : isJournalist
+          ? `data-journalist="${x.name}" data-count="${x.count}"`
+          : '';
+      const pct = max > 0 ? x.count / max * 100 : 0;
+      const fillStyle = x.count === 0
+        ? `width:2px;background:var(--border)`
+        : `width:${pct}%;background:${x.color}`;
+      const cntStyle = x.count === 0 ? `color:var(--muted)` : ``;
+      const clickAttr = isMedia ? `onclick="showMediaDetail('${x.name.replace(/'/g,"\\'")}');" style="cursor:pointer"` : '';
+      return `<div class="bar-item ${isMedia?'media-bar':isJournalist?'journalist-bar':''}" ${dataAttrs} ${clickAttr}>
+        <span class="bar-name" style="${x.count===0?'color:var(--muted)':''}">${x.name}</span>
+        <div class="bar-track"><div class="bar-fill" style="${fillStyle}"></div></div>
+        <span class="bar-cnt" style="${cntStyle}">${x.count}</span>
+      </div>`;
+    }).join('') + `</div>`;
+
+  if(isMedia){
+    window._mediaMembersMap = membersMap;
+    window._mediaMeetingsMap = window._d ? window._d.media_meetings || {} : {};
+    attachMediaTooltips();
+  }
+  if(journalistData){
+    window._journalistData = {};
+    journalistData.forEach(j => { window._journalistData[j.name] = j.meetings; });
+    attachJournalistTooltips();
+  }
+}
+
+function attachMediaTooltips(){
+  const tt = document.getElementById('media-tooltip');
+  document.querySelectorAll('.media-bar').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      const name  = el.dataset.media;
+      const tier  = el.dataset.tier;
+      const count = el.dataset.count;
+      const allMeetings = (window._mediaMeetingsMap[name] || []);
+      const meetings = currentMediaTime === 'lunch'
+        ? allMeetings.filter(m => m.time === 'lunch')
+        : currentMediaTime === 'dinner'
+        ? allMeetings.filter(m => m.time === 'dinner')
+        : allMeetings;
+      const tierBadge = tier ? `<span class="tt-tier tt-t${tier}">${tier}티어</span>` : '';
+      const meetingRows = meetings.length
+        ? meetings.map(m => `
+            <div class="tt-meeting">
+              <span class="tt-date">${m.date.slice(5)}</span>
+              <span class="tt-members">${m.members.join(', ')}</span>
+              <span class="tt-journalist">${m.journalist || '-'}</span>
+            </div>`).join('')
+        : `<div style="color:var(--muted);font-size:11px;padding:4px 0">상세 없음</div>`;
+      tt.innerHTML = `
+        <div class="tt-title">${name} ${tierBadge} 총 ${count}건</div>
+        <div class="tt-hdr"><span>날짜</span><span>팀원</span><span>기자</span></div>
+        ${meetingRows}`;
+      tt.style.display = 'block';
+      moveTooltip(e);
+    });
+    el.addEventListener('mousemove', moveTooltip);
+    el.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
+  });
+}
+
+function attachJournalistTooltips(){
+  const tt = document.getElementById('media-tooltip');
+  document.querySelectorAll('.journalist-bar').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      const name     = el.dataset.journalist;
+      const count    = el.dataset.count;
+      const meetings = (window._journalistData[name] || []);
+      const rows = meetings.map(m => {
+        const who = (m.members && m.members.length) ? m.members.join(', ') : (m.member || '-');
+        return `<div class="tt-row"><span>${who}</span><span>${m.date}</span></div>`;
+      }).join('') || '<div class="tt-row"><span style="color:var(--muted)">상세 없음</span></div>';
+      tt.innerHTML = `<div class="tt-title">${name} · 총 ${count}건</div>${rows}`;
+      tt.style.display = 'block';
+      moveTooltip(e);
+    });
+    el.addEventListener('mousemove', moveTooltip);
+    el.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
+  });
+}
+
+function moveTooltip(e){
+  const tt = document.getElementById('media-tooltip');
+  const x = e.clientX + 16, y = e.clientY - 10;
+  const overRight = x + 200 > window.innerWidth;
+  tt.style.left = (overRight ? e.clientX - 220 : x) + 'px';
+  tt.style.top  = Math.max(0, y) + 'px';
+}
+
+let currentMediaTime = 'all';
+
+function filterMediaTime(time, el){
+  currentMediaTime = time;
+  document.querySelectorAll('#media-time-tabs .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  // 현재 tier 탭의 active 버튼으로 재필터
+  const activeTierEl = document.querySelector('#media-tier-tabs .tab.on');
+  const tier = activeTierEl ? (activeTierEl.dataset.tier || 'all') : 'all';
+  applyMediaFilter(tier);
+}
+
+function filterMediaTier(tier, el){
+  document.querySelectorAll('#media-tier-tabs .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  applyMediaFilter(tier);
+}
+
+function applyMediaFilter(tier){
+  const d = window._d;
+  const timeKey = currentMediaTime; // 'all' | 'lunch' | 'dinner'
+
+  const countOf = x => timeKey === 'lunch' ? x.lunch : timeKey === 'dinner' ? x.dinner : x.count;
+
+  let items = d.top_media;
+  if(tier === 'all'){
+    items = items.filter(x => typeof x.tier === 'number' && x.count > 0)
+                 .sort((a, b) => countOf(b) - countOf(a))
+                 .slice(0, 20);
+  } else {
+    items = items.filter(x => String(x.tier) === tier);
+    if(tier === '기타') items = items.filter(x => x.count > 0);
+    items = items.sort((a, b) => countOf(b) - countOf(a)).slice(0, 20);
+  }
+
+  // 시간 필터 적용 시 0건 제외
+  if(timeKey !== 'all') items = items.filter(x => countOf(x) > 0);
+
+  drawBars('media-bars',
+    items.map(x=>({name:x.name, count:countOf(x), color:TIER_COLOR[String(x.tier)]||'#9ca3af', tier:x.tier})),
+    d.media_members
+  );
+}
+
+function renderCovGrid(cov){
+  const TIER_CONF = {
+    '1': {label:'1티어', cls:'t1', color:'#f43f5e'},
+    '2': {label:'2티어', cls:'t2', color:'#f59e0b'},
+    '3': {label:'3티어', cls:'t3', color:'#60a5fa'},
+  };
+  const byTier = {'1':[],'2':[],'3':[]};
+  Object.entries(cov).forEach(([name, info]) => {
+    const t = String(info.tier);
+    if(byTier[t]) byTier[t].push([name, info]);
+  });
+
+  const html = ['1','2','3'].map(t => {
+    const conf  = TIER_CONF[t];
+    const items = byTier[t].sort((a,b) => b[1].count - a[1].count);
+    const good  = items.filter(([,v])=>v.status==='good').length;
+    const mid   = items.filter(([,v])=>v.status==='mid').length;
+    const low   = items.filter(([,v])=>v.status==='low').length;
+    const none  = items.filter(([,v])=>v.status==='none').length;
+    const maxCnt = Math.max(...items.map(([,v])=>v.count), 1);
+
+    const rows = items.map(([name, info]) => {
+      const dotCls = info.status === 'good' ? 'dot-good'
+                   : info.status === 'mid'  ? '' : info.status === 'low' ? 'dot-low' : 'dot-none';
+      const dotStyle = info.status === 'mid' ? 'style="background:#fb923c"' : '';
+      const barW   = info.count > 0 ? Math.max(4, info.count/maxCnt*100) : 0;
+      const barClr = info.status === 'good' ? '#22c55e'
+                   : info.status === 'mid'  ? '#fb923c'
+                   : info.status === 'low'  ? '#60a5fa' : '#2a2a2a';
+      const isNone = info.status === 'none';
+      const tooltip = `${name}: ${info.count}건 (기준 ${info.good_threshold}건 이상 충분 / ${info.low_threshold}건 이하 부족)`;
+      return `<div class="cov-row">
+        <div class="cov-dot ${dotCls}" ${dotStyle}></div>
+        <span class="cov-name ${isNone?'none':''}" title="${tooltip}">${name}</span>
+        <div class="cov-bar-wrap"><div class="cov-bar-fill" style="width:${barW}%;background:${barClr}"></div></div>
+        <span class="cov-cnt ${isNone?'none':''}">${info.count}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="cov-col">
+      <div class="cov-col-hdr ${conf.cls}">
+        <span class="cov-tier-name">${conf.label}</span>
+        <div class="cov-tier-pills">
+          <span class="pill-good">${good}</span>
+          ${mid ? `<span class="pill-mid">${mid}</span>` : ''}
+          <span class="pill-low">${low}</span>
+          <span class="pill-none">${none}</span>
+        </div>
+      </div>
+      <div class="cov-list">${rows}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('cov-grid').innerHTML = html;
+}
+
+// ── 히트맵 ──────────────────────────────────────────────────────
+const HEATMAP_TIER_COLORS = {'1':'244,63,94','2':'245,158,11','3':'96,165,250','기타':'100,116,139'};
+
+function getTierColor(tier){
+  return HEATMAP_TIER_COLORS[String(tier)] || HEATMAP_TIER_COLORS['기타'];
+}
+
+function renderHeatmap(d, tier){
+  let items = d.top_media;
+  if(tier === 'all'){
+    items = items.filter(x => typeof x.tier === 'number' && x.count > 0);
+  } else if(tier === '기타'){
+    items = items.filter(x => x.tier === '기타' && x.count > 0);
+  } else {
+    items = items.filter(x => String(x.tier) === tier);
+  }
+  items = items.slice().sort((a,b) => b.count - a.count);
+
+  if(!items.length){
+    document.getElementById('media-heatmap').innerHTML = '<div style="color:var(--muted);font-size:12px;padding:20px 0">해당 티어 미팅 없음</div>';
+    return;
+  }
+
+  const months = d.months;
+  const monthLabels = months.map(m => m.slice(5)+'월');
+
+  const headerCols = monthLabels.map(lbl => `<th>${lbl}</th>`).join('');
+  const rows = items.map(item => {
+    const name = item.name;
+    const tierKey = String(item.tier);
+    const rgb = getTierColor(item.tier);
+    const by = d.media_by_month[name] || {};
+
+    const cells = months.map(m => {
+      const cnt = by[m] || 0;
+      let bg = 'transparent';
+      let txt = '';
+      if(cnt === 1){ bg = `rgba(${rgb},0.25)`; txt = '1'; }
+      else if(cnt === 2){ bg = `rgba(${rgb},0.5)`; txt = '2'; }
+      else if(cnt >= 3 && cnt <= 4){ bg = `rgba(${rgb},0.75)`; txt = String(cnt); }
+      else if(cnt >= 5){ bg = `rgba(${rgb},1.0)`; txt = String(cnt); }
+      return `<td><div class="heatmap-cell" style="background:${bg}">${txt}</div></td>`;
+    }).join('');
+
+    const tierBadgeStyle = typeof item.tier === 'number'
+      ? `color:var(--t${item.tier})`
+      : `color:var(--muted)`;
+    const totalStyle = `color:rgba(${rgb},1);font-weight:700;margin-left:4px;font-size:11px`;
+
+    return `<tr>
+      <td><span class="heatmap-name" onclick="showMediaDetail('${name.replace(/'/g,"\\'")}')"><span style="${tierBadgeStyle}">●</span> ${name}</span> <span style="${totalStyle}">${item.count}</span></td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  document.getElementById('media-heatmap').innerHTML = `
+    <table class="heatmap-table">
+      <thead><tr><th>매체</th>${headerCols}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function filterHeatmap(tier, el){
+  document.querySelectorAll('#heatmap-tier-tabs .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderHeatmap(window._d, tier);
+}
+
+// ── 매체 상세 모달 ─────────────────────────────────────────────
+function showMediaDetail(mediaName){
+  const d = window._d;
+  const mediaInfo = d.top_media.find(x=>x.name===mediaName);
+  const tier = mediaInfo?.tier;
+  const tierBadge = typeof tier==='number' ? `<span class="badge b-t${tier}" style="font-size:11px">${tier}티어</span>` : '';
+
+  // media_meetings_raw에서 해당 매체 미팅 추출
+  const meetings = Object.values(d.media_meetings_raw || {})
+    .filter(m=>m.media===mediaName)
+    .sort((a,b)=>b.date.localeCompare(a.date));
+
+  // 고유 기자 목록
+  const journalists = [...new Set(meetings.flatMap(m=>(m.journalist||'').split(/[,&+]/).map(j=>j.trim()).filter(Boolean)))];
+
+  document.getElementById('media-modal-title').innerHTML = `${mediaName} ${tierBadge} <span style="color:var(--muted);font-size:13px;font-weight:400">총 ${meetings.length}건</span>`;
+
+  const journalistLinks = journalists.length ? `
+    <div style="margin-bottom:14px;padding:10px 14px;background:var(--card2);border-radius:8px;font-size:12px">
+      <div style="color:var(--muted);font-size:11px;margin-bottom:6px;font-weight:600">담당 기자</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${journalists.map(j=>`<a href="https://kakao.agit.in/search?q=${encodeURIComponent(j)}&group_id=300008395&group_title=%EA%BC%BC-%EB%AF%B8%ED%8C%85%EB%A6%AC%ED%8F%AC%ED%8A%B8%2F%EB%AF%B8%EB%94%94%EC%96%B4%EB%A6%AC%EC%8A%A4%ED%8A%B8" target="_blank" style="background:var(--border);border-radius:4px;padding:2px 8px;color:var(--accent);font-size:11px;text-decoration:none">${j} ↗</a>`).join('')}
+      </div>
+    </div>` : '';
+
+  const meetingRows = meetings.map(m=>`
+    <tr>
+      <td style="color:var(--muted);font-size:11px;white-space:nowrap">${m.date}</td>
+      <td style="font-size:11px">${Array.isArray(m.members)?m.members.join(', '):(m.members||'-')}</td>
+      <td style="color:var(--accent);font-size:11px">${m.journalist||'-'}</td>
+    </tr>`).join('');
+
+  document.getElementById('media-modal-body').innerHTML = `
+    ${journalistLinks}
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="text-align:left;font-size:11px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)">날짜</th>
+        <th style="text-align:left;font-size:11px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)">팀원</th>
+        <th style="text-align:left;font-size:11px;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border)">기자</th>
+      </tr></thead>
+      <tbody>${meetingRows}</tbody>
+    </table>`;
+
+  const modal = document.getElementById('media-modal');
+  modal.style.display = 'flex';
+  modal.onclick = e => { if(e.target===modal) closeMediaModal(); };
+}
+
+function closeMediaModal(){
+  document.getElementById('media-modal').style.display = 'none';
+}
+
+// ── 커버리지 갭 토스트 ─────────────────────────────────────────
+function showCoverageToast(d){
+  const gaps = Object.entries(d.coverage || {})
+    .filter(([, info]) => (info.tier===1||info.tier===2) && (info.status==='low'||info.status==='none'))
+    .sort((a,b) => {
+      if(a[1].tier !== b[1].tier) return a[1].tier - b[1].tier;
+      return a[1].count - b[1].count;
+    });
+  if(!gaps.length) return;
+
+  const shown = gaps.slice(0,5);
+  const extra = gaps.length - 5;
+  const items = shown.map(([name, info]) => `
+    <div class="toast-item" onclick="document.getElementById('cov-grid').scrollIntoView({behavior:'smooth'})">
+      <span class="toast-name">${name}</span>
+      <span style="color:var(--muted);margin-left:4px">${info.tier}티어 · ${info.count}건</span>
+    </div>`).join('');
+  const extraLine = extra > 0 ? `<div style="color:var(--muted);font-size:11px;margin-top:4px">+ ${extra}개 더</div>` : '';
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `
+    <div class="toast-title">
+      <span>⚠️ 커버리지 부족 매체</span>
+      <button class="toast-close" onclick="this.closest('.toast').remove()">✕</button>
+    </div>
+    ${items}${extraLine}`;
+  document.getElementById('toast-container').appendChild(toast);
+  setTimeout(() => { toast.remove(); }, 8000);
+}
+
+function renderSpecialRankings(d){
+  const sr = d.special_rankings;
+  const COLS = [
+    {key:'total',  icon:'📊', label:'최다 미팅 크루'},
+    {key:'lunch',  icon:'🍱', label:'점심 미팅 크루'},
+    {key:'dinner', icon:'🍷', label:'간 건강 염려 크루'},
+    {key:'other',  icon:'📰', label:'개고생 크루'},
+    {key:'busy',   icon:'📅', label:'최다 회의 크루'},
+  ];
+  const QLABELS  = {'1':'Q1 (1~3월)','2':'Q2 (4~6월)','3':'Q3 (7~9월)','4':'Q4 (10~12월)'};
+  const QCOLORS  = {'annual':'#7c86ff','1':'#f43f5e','2':'#f59e0b','3':'#34d399','4':'#60a5fa'};
+  const MEDALS  = ['🥇','🥈','🥉'];
+
+  function annualTop(colData){
+    const totals = {};
+    const mediaAgg = {};
+    for (const q of ['1','2','3','4']) {
+      for (const item of (colData[q] || [])) {
+        totals[item.member] = (totals[item.member] || 0) + item.count;
+        if(item.media && item.media.length){
+          if(!mediaAgg[item.member]) mediaAgg[item.member] = new Set();
+          item.media.forEach(m => mediaAgg[item.member].add(m));
+        }
+      }
+    }
+    return Object.entries(totals)
+      .sort((a,b) => b[1]-a[1])
+      .slice(0,3)
+      .map(([member, count]) => ({
+        member, count,
+        media: mediaAgg[member] ? [...mediaAgg[member]].sort() : undefined
+      }));
+  }
+
+  function makeRows(items, showMediaTip=false){
+    return items.length
+      ? items.map((x,i) => {
+          const name = x.member.split('(')[0];
+          const mediaList = (x.media && x.media.length)
+            ? x.media.join(', ')
+            : null;
+          const tip = showMediaTip && mediaList
+            ? `<span class="sr-media-tip" data-media-list="${mediaList.replace(/"/g,'&quot;')}">📋</span>`
+            : '';
+          return `<div class="sr-row">
+            <span class="sr-rank ${i===0?'gold':''}">${MEDALS[i]||''}</span>
+            <span class="sr-name">${name}${tip}</span>
+            <span class="sr-cnt">${x.count}건</span>
+          </div>`;
+        }).join('')
+      : `<div class="sr-empty">-</div>`;
+  }
+
+  function attachOtherTooltips(){
+    const tt = document.getElementById('media-tooltip');
+    document.querySelectorAll('.sr-media-tip').forEach(el => {
+      el.addEventListener('mouseenter', e => {
+        const list = el.dataset.mediaList;
+        if(!list) return;
+        const tags = list.split(', ').map(m => `<span style="background:var(--border);border-radius:4px;padding:1px 6px;font-size:11px;white-space:nowrap">${m}</span>`).join(' ');
+        tt.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:5px">만난 매체</div><div style="display:flex;flex-wrap:wrap;gap:3px;max-width:220px">${tags}</div>`;
+        tt.style.display = 'block';
+        moveTooltip(e);
+      });
+      el.addEventListener('mousemove', moveTooltip);
+      el.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
+    });
+  }
+
+  document.getElementById('special-rankings').innerHTML = `<div class="sr-grid sr-grid-2x2">${
+    COLS.map(col => {
+      const colData = sr[col.key] || {};
+      const isOther = col.key === 'other';
+      const annual  = annualTop(colData);
+      const quarters = Object.entries(QLABELS).map(([q, label]) => `
+        <div class="sr-quarter">
+          <div class="sr-q-label" style="color:${QCOLORS[q]}">${label}</div>
+          ${makeRows(colData[q] || [], isOther)}
+        </div>`).join('');
+      return `<div class="sr-col">
+        <div class="sr-col-hdr">${col.icon} ${col.label}</div>
+        <div class="sr-body">
+          <div class="sr-quarter sr-annual">
+            <div class="sr-q-label" style="color:${QCOLORS.annual}">📆 연간 누적</div>
+            ${makeRows(annual, isOther)}
+          </div>
+          ${quarters}
+        </div>
+      </div>`;
+    }).join('')
+  }</div>`;
+  attachOtherTooltips();
+}
+
+
+loadData();
+</script>
+
+<div id="media-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);align-items:center;justify-content:center">
+  <div id="media-modal-card" style="background:var(--card);border:1px solid var(--border);border-radius:12px;width:680px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 48px rgba(0,0,0,.5)">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div id="media-modal-title" style="font-size:15px;font-weight:700;color:var(--text)"></div>
+      <button onclick="closeMediaModal()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:2px 6px">✕</button>
+    </div>
+    <div id="media-modal-body" style="padding:16px 20px;overflow-y:auto;flex:1"></div>
+  </div>
+</div>
+</body>
+</html>
