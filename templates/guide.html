@@ -121,7 +121,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;margin-top:64px;
   <div class="cover-tag">PR팀 내부 도구</div>
   <h1>📅 PR팀 <span>캘린더 대시보드</span><br>사용 가이드</h1>
   <p>구글 캘린더에 입력한 미팅 데이터를 자동으로 분석해<br>매체 커버리지·기자 관계·팀원별 활동을 한눈에 확인합니다.</p>
-  <div class="cover-url">🌐 접속 주소&nbsp;&nbsp;<strong>http://172.20.28.123:5001</strong></div>
+  <div class="cover-url">🌐 접속 주소&nbsp;&nbsp;<strong id="server-url">http://192.168.219.100:5001</strong></div>
 </div>
 
 <!-- TOC -->
@@ -149,7 +149,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;margin-top:64px;
     </div></div>
     <div class="step"><div class="step-num">2</div><div class="step-body">
       <strong>브라우저 주소창에 입력</strong>
-      <span class="code">http://172.20.28.123:5001</span>
+      <span class="code" id="server-url2">http://192.168.219.100:5001</span>
     </div></div>
     <div class="step"><div class="step-num">3</div><div class="step-body">
       <strong>데이터 로딩 대기 (5~20초)</strong>
@@ -452,5 +452,10 @@ footer{text-align:center;color:var(--muted);font-size:13px;margin-top:64px;
 </footer>
 
 </div>
+<script>
+  // 접속한 서버의 실제 IP:포트로 자동 업데이트
+  const url = window.location.origin;
+  document.querySelectorAll('#server-url, #server-url2').forEach(el => el.textContent = url);
+</script>
 </body>
 </html>

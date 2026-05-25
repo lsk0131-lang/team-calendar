@@ -5,12 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 실행 방법
 
 ```bash
-cd ~/team-calendar
-python dashboard.py          # Flask 서버 시작 (http://localhost:5001)
-python sync_media.py         # 매체 목록을 Google Sheets에서 수동 동기화
+cd ~/dev/team-calendar
+python3 dashboard.py         # Flask 서버 시작 (http://localhost:5001)
+python3 sync_media.py        # 매체 목록을 Google Sheets에서 수동 동기화
 ```
 
+시작 시 팀원 공유 URL을 자동으로 감지해 출력합니다 (IP 하드코딩 없음).  
 Flask는 `debug=True`로 실행되므로 `dashboard.py` 또는 `media_parser.py` 수정 시 자동 재시작됩니다. `dashboard.html` 변경은 재시작 없이 브라우저 새로고침만으로 반영됩니다.
+
+### 매체 싱크 토큰 만료 시
+
+`token_sheets.json`이 만료되면 `/api/sync-media`가 `invalid_grant` 에러를 반환합니다.
+
+```bash
+rm ~/dev/team-calendar/token_sheets.json
+python3 -c "from sync_media import get_sheets_service; get_sheets_service()"
+# 브라우저에서 Google 계정 인증 후 자동으로 token_sheets.json 재생성
+```
 
 ## 아키텍처 개요
 
@@ -80,6 +91,9 @@ templates/guide.html   — 사용 설명서 (정적 HTML)
 - **`media_parser.py` 수정 후**: `dashboard.py`의 `sync_media` 라우트가 `importlib.reload(media_parser)`를 호출하지만, `MEDIA_TIERS`, `ALL_KEYS` 등 모듈 레벨 상수는 재로드 후 재임포트해야 반영됨.
 - **`media_list.json` 직접 편집 시**: `external_keywords` 키는 `sync_media.py`가 보존하지만 나머지는 동기화 시 덮어씀.
 - **티어 탭 필터 (`applyMediaFilter`)**: 탭의 `data-tier` 속성값(`'all'`, `'1'`, `'2'`, `'3'`, `'기타'`)을 직접 읽어야 함. `textContent`로 읽으면 `'1티어'`가 되어 `String(x.tier) === '1'` 매칭 실패.
+- **`filterMediaTime`에서 활성 티어 읽기**: `activeTierEl.dataset.tier`로 읽어야 함. `textContent` 파싱은 위와 같은 이유로 작동 안 함.
+- **매체 툴팁 시간대 필터**: `media_meetings_raw` 각 항목에 `"time": "lunch"|"dinner"|"other"` 필드가 있음. 프론트에서 `currentMediaTime`에 따라 필터링.
+- **서버 IP 자동 감지**: `dashboard.py`의 `__main__` 블록에서 `socket.SOCK_DGRAM`으로 실제 네트워크 인터페이스 IP를 탐지. IP가 바뀌어도 자동 반영됨.
 
 ## 인증 파일
 

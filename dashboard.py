@@ -632,8 +632,14 @@ def download_excel():
 
 if __name__ == "__main__":
     import socket
-    ip = socket.gethostbyname(socket.gethostname())
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        ip = socket.gethostbyname(socket.gethostname())
     print(f"🚀 대시보드 실행 중")
     print(f"   내 컴퓨터: http://localhost:5001")
-    print(f"   팀원 공유: http://172.20.28.123:5001")
+    print(f"   팀원 공유: http://{ip}:5001")
     app.run(host="0.0.0.0", debug=True, port=5001)
